@@ -18,8 +18,8 @@ describe('github weekly contributions', () => {
 
     it('should not be authenticated to github with non-valid token', () =>
         request(this.host).get('/').set('Authorization', `token not-${process.env.token}`)
-            .expect(404));
+            .expect(401));
 
-    
+
     after((done) => this.app.close(done));
 });
