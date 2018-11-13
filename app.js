@@ -1,11 +1,12 @@
 const express = require('express');
 const app = express();
-const bodyParser = require('body-parser');
+const body = require('body-parser');
 
-app.use(bodyParser.json());
+app.use(body.json());
 
-app.get('/', function (req, res) {
+app.get('/', (req, res) => {
     res.json([]);
 });
 
-app.listen(process.env.PORT || 8080);
+const server = app.listen(process.env.PORT || 8080);
+module.exports = () => server;
