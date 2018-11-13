@@ -1,2 +1,2 @@
-# github-weekly-contributions
-App which retrieves weekly contribution for all repos for defined profile
+# GitHub Data
+App which retrieves stats related to contribution of all organization repositories during last year 
