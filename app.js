@@ -11,9 +11,10 @@ const _ = require('lodash');
 
 const RETRY_OPTS = {
     backoff: 5,
-    interval: 2000,
+    interval: 1000,
     max_tries: 5
 };
+
 const getErrorCode = (err) => err.code || err.statusCode || err.status || 500;
 const getMessage = (err) => {
     let message = err.message || err.statusText || 'Ops... Something terrible happens';
@@ -69,6 +70,18 @@ const getRepositories = (github) => retry(() => {
     return github.getUser().listRepos({'affiliation': 'organization_member'}).then(processGitHubResponse);
 }, RETRY_OPTS);
 
+const getRepository = (github, owner, repository) => retry(() => {
+    return github.getRepo(owner, repository).getDetails().then(processGitHubResponse);
+}, RETRY_OPTS);
+
+const getTeamRepositories = (github, team) => retry(() => {
+    return github.getTeam(team.id).listRepos().then(processGitHubResponse);
+}, RETRY_OPTS);
+
+const getTeams = (github, req) => retry(() => {
+    return github.getOrganization(req.params.organization).getTeams().then(processGitHubResponse);
+}, RETRY_OPTS);
+
 const getRepoStats = (github, repo) => retry(() => {
     return github.getRepo(repo.owner.login, repo.name).getContributorStats().then(processGitHubResponse);
 }, RETRY_OPTS);
@@ -103,6 +116,7 @@ const getAuthToken = (req) => {
     return req.query.token;
 };
 
+
 const writeStats = async (github, repos, res) => {
     console.log(`Count of repos to process is ${repos.length}`);
     res.type('json');
@@ -111,11 +125,11 @@ const writeStats = async (github, repos, res) => {
     await writeStatsToStream(repos, github, stream);
     stream.end();
 };
-
 app.use(body.json());
 
 
 app.use(morgan(':method :status :response-time ms'));
+
 app.get('/', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
@@ -125,18 +139,16 @@ app.get('/', async (req, res, next) => {
         next(err.response || err);
     }
 });
-
-
 app.get('/:organization/team/:team', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
-        const teams = await github.getOrganization(req.params.organization).getTeams().then(processGitHubResponse);
+        const teams = await getTeams(github, req);
         const teamToFind = req.params.team.toLowerCase();
         const team = _.find(teams, (t) => t.name.toLowerCase() === teamToFind || t.slug.toLowerCase() === teamToFind);
         if (!team) {
             throw new Error(`Team '${req.params.team}' is not found at ${req.params.organization}`);
         }
-        const repos = await github.getTeam(team.id).listRepos().then(processGitHubResponse);
+        const repos = await getTeamRepositories(github, team);
         await writeStats(github, repos, res);
     } catch (err) {
         next(err.response || err);
@@ -146,7 +158,7 @@ app.get('/:organization/team/:team', async (req, res, next) => {
 app.get('/:owner/:repository', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
-        const repo = await github.getRepo(req.params.owner, req.params.repository).getDetails().then(processGitHubResponse);
+        const repo = await getRepository(github, req.params.owner, req.params.repository);
         await writeStats(github, [repo], res);
     } catch (err) {
         next(err.response || err);
