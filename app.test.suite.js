@@ -7,7 +7,7 @@ describe('github data link suite', function () {
     before('start app', () => {
         this.app = require('./app')();
         this.get = (config = {}) => request(`http://127.0.0.1:${this.app.address().port}`)
-            .get('/')
+            .get(config.path ? config.path : '/')
             .set('Authorization', `token ${config.token || process.env.token}`);
     });
 
@@ -17,7 +17,7 @@ describe('github data link suite', function () {
 
     it('should not be authenticated to github with non-valid token', () => this.get({token: 'not-valid'}).expect(401));
 
-    it('should be retrieve stats with provided token', () => this.get()
+    it('should retrieve stats for all repos for user organizations', () => this.get()
         .expect(200)
         .then((res) => {
             const stats = res.body;
@@ -28,7 +28,7 @@ describe('github data link suite', function () {
             expect(entry).to.have.property('Code Deletions');
             expect(entry).to.have.property('Code Commits');
             expect(entry).to.have.property('Code Commits');
-            expect(entry).to.have.property('Organization');
+            expect(entry).to.have.property('Repository Owner');
             expect(entry).to.have.property('Repository');
             expect(entry).to.have.property('Repository Created On');
             expect(entry).to.have.property('Repository Language');
@@ -37,6 +37,8 @@ describe('github data link suite', function () {
             expect(entry).to.have.property('Contributor');
             expect(entry).to.have.property('Date');
         }));
+
+    it('should retrieve concrete repo stats', () => this.get({path: '/facebook/react'}).expect(200));
 
     after((done) => this.app.close(done));
 });

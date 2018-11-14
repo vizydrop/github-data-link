@@ -7,14 +7,21 @@ const JSONStream = require('JSONStream');
 const moment = require('moment');
 const morgan = require('morgan');
 const retry = require('bluebird-retry');
+const _ = require('lodash');
+
 const RETRY_OPTS = {
     backoff: 5,
-    interval: 1000,
-    max_tries: 3,
-    timeout: 50000
+    interval: 2000,
+    max_tries: 5
 };
 const getErrorCode = (err) => err.code || err.statusCode || err.status || 500;
-const getMessage = (err) => err.message || err.statusText;
+const getMessage = (err) => {
+    let message = err.message || err.statusText || 'Ops... Something terrible happens';
+    if (getErrorCode(err) === 401) {
+        message = `Provide your valid GitHub token to query as 'token=[your github token]' or use authorization header 'Authorization:token [your github token]'. You can retrieve personal GitHub token at https://github.com/settings/tokens`
+    }
+    return message;
+};
 
 const writeContributorStatsToStream = (entry, repo, contributorName, stream) => {
     entry.weeks.forEach(week => {
@@ -22,7 +29,7 @@ const writeContributorStatsToStream = (entry, repo, contributorName, stream) => 
             return;
         }
         const v = {
-            'Organization': repo.owner.login,
+            'Repository Owner': repo.owner.login,
             'Repository': repo.name,
             'Repository Created On': moment(repo.created_at).format('DD-MMM-YYYY'),
             'Repository Language': repo.language || 'N/A',
@@ -40,6 +47,9 @@ const writeContributorStatsToStream = (entry, repo, contributorName, stream) => 
 
 const processGitHubResponse = (r) => {
     console.log(`${r.config.method} ${r.status} ${r.config.url} | ${r.statusText}`);
+    if (r.status === 204) {
+        return [];
+    }
     if (r.status !== 200) {
         const error = new Error(r.statusText);
         error.code = r.status;
@@ -48,43 +58,41 @@ const processGitHubResponse = (r) => {
     return r.data;
 };
 
+const initGitHub = async (req) => {
+    const accessToken = getAuthToken(req);
+    const github = new GitHub({token: accessToken});
+    console.log(`Logged as '${(await github.getUser().getProfile().then(processGitHubResponse)).login}'`);
+    return github;
+};
+
 const getRepositories = (github) => retry(() => {
     return github.getUser().listRepos({'affiliation': 'organization_member'}).then(processGitHubResponse);
-}, RETRY_OPTS);
-
-const getUserProfile = (github, login) => retry(() => {
-    return github.getUser(login).getProfile().then(processGitHubResponse);
 }, RETRY_OPTS);
 
 const getRepoStats = (github, repo) => retry(() => {
     return github.getRepo(repo.owner.login, repo.name).getContributorStats().then(processGitHubResponse);
 }, RETRY_OPTS);
 
-const writeRepoStatsToStream = async (github, repo, stream, getContributorName) => {
+const writeRepoStatsToStream = async (github, repo, stream) => {
     const stats = await getRepoStats(github, repo);
     await Promise.each(stats, async (entry) => {
         const login = entry.author.login;
-        const contributorName = login ? await getContributorName(login) : 'Unknown Member';
+        const contributorName = login || 'Unknown Member';
         writeContributorStatsToStream(entry, repo, contributorName, stream);
     });
 };
 
 const writeStatsToStream = async (repos, github, stream) => {
-    const contributorProfiles = {};
-    const getContributorName = async (login) => {
-        if (!contributorProfiles[login]) {
-            const profile = await getUserProfile(github, login);
-            contributorProfiles[login] = profile || {};
-        }
-        return contributorProfiles[login].name || login || 'Uknown User';
-    };
-    await Promise.each(repos, (repo) => writeRepoStatsToStream(github, repo, stream, getContributorName))
-        .catch(err => stream.write({
-            __streamError: {
-                message: getMessage(err),
-                code: getErrorCode(err)
-            }
-        }));
+    await Promise.each(repos, (repo) => writeRepoStatsToStream(github, repo, stream))
+        .catch(err => {
+            console.log(`ERROR STREAMING: ${err.message}`);
+            return stream.write({
+                __streamError: {
+                    message: getMessage(err),
+                    code: getErrorCode(err)
+                }
+            });
+        });
 };
 
 const getAuthToken = (req) => {
@@ -94,28 +102,59 @@ const getAuthToken = (req) => {
     }
     return req.query.token;
 };
+
+const writeStats = async (github, repos, res) => {
+    console.log(`Count of repos to process is ${repos.length}`);
+    res.type('json');
+    const stream = JSONStream.stringify();
+    stream.pipe(res);
+    await writeStatsToStream(repos, github, stream);
+    stream.end();
+};
+
 app.use(body.json());
 
-app.use(morgan(':method :status :response-time ms'));
 
+app.use(morgan(':method :status :response-time ms'));
 app.get('/', async (req, res, next) => {
     try {
-        const accessToken = getAuthToken(req);
-        const github = new GitHub({token: accessToken});
+        const github = await initGitHub(req);
         const repos = await getRepositories(github);
-        console.log(`Count of repos to process is ${repos.length}`);
-        res.type('json');
-        const stream = JSONStream.stringify();
-        stream.pipe(res);
-        await writeStatsToStream(repos, github, stream);
-        stream.end();
+        await writeStats(github, repos, res);
+    } catch (err) {
+        next(err.response || err);
+    }
+});
+
+
+app.get('/:organization/team/:team', async (req, res, next) => {
+    try {
+        const github = await initGitHub(req);
+        const teams = await github.getOrganization(req.params.organization).getTeams().then(processGitHubResponse);
+        const teamToFind = req.params.team.toLowerCase();
+        const team = _.find(teams, (t) => t.name.toLowerCase() === teamToFind || t.slug.toLowerCase() === teamToFind);
+        if (!team) {
+            throw new Error(`Team '${req.params.team}' is not found at ${req.params.organization}`);
+        }
+        const repos = await github.getTeam(team.id).listRepos().then(processGitHubResponse);
+        await writeStats(github, repos, res);
+    } catch (err) {
+        next(err.response || err);
+    }
+});
+
+app.get('/:owner/:repository', async (req, res, next) => {
+    try {
+        const github = await initGitHub(req);
+        const repo = await github.getRepo(req.params.owner, req.params.repository).getDetails().then(processGitHubResponse);
+        await writeStats(github, [repo], res);
     } catch (err) {
         next(err.response || err);
     }
 });
 
 app.use((err, req, res, next) => res.status(getErrorCode(err)).send({
-    message: getErrorCode(err),
+    message: getMessage(err),
     code: getErrorCode(err)
 }));
 
