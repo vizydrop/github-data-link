@@ -1,10 +1,12 @@
 const express = require('express');
 const app = express();
+const path = require('path');
 const GitHub = require('github-api');
 const Promise = require('bluebird');
 const JSONStream = require('JSONStream');
 const moment = require('moment');
-const morgan = require('morgan');
+const requestLog = require('./request-log');
+const logger = require('./logger');
 const retry = require('bluebird-retry');
 const _ = require('lodash');
 
@@ -24,7 +26,7 @@ const getMessage = (err) => {
 };
 
 const catchGitHub401or404 = (err) => {
-    console.log(`GITHUB ERROR: ${err.message}`);
+    logger.info(`GITHUB ERROR: ${err.message}`);
     const errorCode = getErrorCode(err.response || {});
     if (errorCode === 401 || errorCode === 404) {
         err.status = errorCode;
@@ -34,7 +36,7 @@ const catchGitHub401or404 = (err) => {
 };
 
 const processGitHubResponse = (r) => {
-    console.log(`${r.config.method} ${r.status} ${r.config.url} | ${r.statusText}`);
+    logger.info(`${r.config.method} ${r.status} ${r.config.url} | ${r.statusText}`);
     if (r.status === 204) {
         return [];
     }
@@ -90,7 +92,7 @@ const writeRepoStatsToStream = async (github, repo, stream) => {
 const writeStatsToStream = async (repos, github, stream) => {
     await Promise.each(repos, (repo) => writeRepoStatsToStream(github, repo, stream))
         .catch(err => {
-            console.log(`ERROR STREAMING: ${err.message}`);
+            logger.info(`ERROR STREAMING: ${err.message}`);
             return stream.write({
                 __streamError: {
                     message: getMessage(err),
@@ -110,7 +112,7 @@ const getAuthToken = (req) => {
 
 
 const streamStats = async (github, repos, out) => {
-    console.log(`Count of repos to process is ${repos.length}`);
+    logger.info(`Count of repos to process is ${repos.length}`);
     out.type('json');
     const stream = JSONStream.stringify();
     stream.pipe(out);
@@ -118,15 +120,21 @@ const streamStats = async (github, repos, out) => {
     stream.end();
 };
 
-morgan.token('path', (req) => req.path);
+app.use(requestLog());
 
-app.use(morgan(':method :status :path :response-time ms'));
+app.get('/favicon.ico', function (req, res) {
+    res.sendFile(path.resolve('./favicon.ico'));
+});
 
 app.get('/vizydrop-status-ping', (req, res) => {
     res.json({ok:true});
 });
 
 app.get('/', async (req, res, next) => {
+    if(!getAuthToken(req)){
+        res.sendStatus(401);
+        return;
+    }
     try {
         const github = await initGitHub(req);
         const repos = await getRepositoriesForLoggedUser(github);
@@ -181,5 +189,5 @@ app.use((err, req, res, next) => res.status(getErrorCode(err)).send({
 }));
 
 const port = process.env.PORT || 7770;
-const server = app.listen(port, () => console.log(`github-data-link is listening on port ${port}!`));
+const server = app.listen(port, () => logger.info(`github-data-link is listening on port ${port}!`));
 module.exports = () => server;
