@@ -37,9 +37,7 @@ describe('github data link suite', function () {
             expect(entry).to.have.property('Date');
         }));
 
-    it('should retrieve stats for all repos for user organizations', () => this.get()
-        .expect(200));
-
+    it('should retrieve stats for all repos where user is a member', () => this.get().expect(200));
     it('should retrieve owner or organization repo stats', () => this.get({path: '/vizydrop'}).expect(200));
 
     after((done) => this.app.close(done));
