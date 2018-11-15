@@ -24,29 +24,7 @@ const getMessage = (err) => {
     return message;
 };
 
-const writeContributorStatsToStream = (entry, repo, contributorName, stream) => {
-    entry.weeks.forEach(week => {
-        if (week.a + week.d + week.c === 0) {
-            return;
-        }
-        const v = {
-            'Repository Owner': repo.owner.login,
-            'Repository': repo.name,
-            'Repository Created On': moment(repo.created_at).format('DD-MMM-YYYY'),
-            'Repository Language': repo.language || 'N/A',
-            'Repository Size': repo.size,
-            'Is Private Repository': repo.private,
-            'Contributor': contributorName,
-            'Date': moment.unix(week.w).format('DD-MMM-YYYY'),
-            'Code Additions': week.a,
-            'Code Deletions': week.d,
-            'Code Commits': week.c
-        };
-        stream.write(v);
-    });
-};
-
-const catchGitHubRequestNotFoundError = (err) => {
+const catchGitHub401or404 = (err) => {
     const errorCode = getErrorCode(err.response || {});
     if (errorCode === 401 || errorCode === 404) {
         err.status = errorCode;
@@ -69,36 +47,36 @@ const processGitHubResponse = (r) => {
     return r.data;
 };
 
-const initGitHub = async (req) => {
-    const accessToken = getAuthToken(req);
-    const github = new GitHub({token: accessToken});
-    console.log(`Logged as '${(await github.getUser().getProfile().then(processGitHubResponse)).login}'`);
-    return github;
+const initGitHub = async (req) => new GitHub({token: getAuthToken(req)});
+const execWithRetry = (fn) => retry(() => fn().then(processGitHubResponse).catch(catchGitHub401or404), RETRY_OPTS);
+const getRepositoriesForLoggedUser = (github) => execWithRetry(() => github.getUser().listRepos({'type': 'member'}));
+const getRepositoriesForOwner = (github, owner) => execWithRetry(() => github.getUser(owner).listRepos());
+const getRepository = (github, owner, repository) => execWithRetry(() => github.getRepo(owner, repository).getDetails());
+const getTeamRepositories = (github, team) => execWithRetry(() => github.getTeam(team.id).listRepos());
+const getTeams = (github, organization) => execWithRetry(() => github.getOrganization(organization).getTeams());
+const getRepoStats = (github, repo) => execWithRetry(() => github.getRepo(repo.owner.login, repo.name).getContributorStats());
+
+const writeContributorStatsToStream = (entry, repo, contributorName, stream) => {
+    entry.weeks.forEach(week => {
+        if (week.a + week.d + week.c === 0) {
+            return;
+        }
+        const v = {
+            'Repository Owner': repo.owner.login,
+            'Repository': repo.name,
+            'Repository Created On': moment(repo.created_at).format('DD-MMM-YYYY'),
+            'Repository Language': repo.language || 'N/A',
+            'Repository Size': repo.size,
+            'Is Private Repository': repo.private,
+            'Contributor': contributorName,
+            'Date': moment.unix(week.w).format('DD-MMM-YYYY'),
+            'Code Additions': week.a,
+            'Code Deletions': week.d,
+            'Code Commits': week.c
+        };
+        stream.write(v);
+    });
 };
-
-const getRepositoriesForLoggedUser = (github) => retry(() => {
-    return github.getUser().listRepos({'type': 'member'}).then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
-}, RETRY_OPTS);
-
-const getRepositoriesForOwner = (github, owner) => retry(() => {
-    return github.getUser(owner).listRepos().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
-}, RETRY_OPTS);
-
-const getRepository = (github, owner, repository) => retry(() => {
-    return github.getRepo(owner, repository).getDetails().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
-}, RETRY_OPTS);
-
-const getTeamRepositories = (github, team) => retry(() => {
-    return github.getTeam(team.id).listRepos().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
-}, RETRY_OPTS);
-
-const getTeams = (github, organization) => retry(() => {
-    return github.getOrganization(organization).getTeams().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
-}, RETRY_OPTS);
-
-const getRepoStats = (github, repo) => retry(() => {
-    return github.getRepo(repo.owner.login, repo.name).getContributorStats().then(processGitHubResponse);
-}, RETRY_OPTS);
 
 const writeRepoStatsToStream = async (github, repo, stream) => {
     const stats = await getRepoStats(github, repo);
