@@ -28,6 +28,6 @@ Attach authorization header ``Authorization`` to your request in the following f
 - ``:repository`` is name of the repository
 
 ### Retrieve stats of repositories by team 
-###``GET: http://<app host>/:organization/team/:team`` 
+### ``GET: http://<app host>/:organization/team/:team`` 
 - ``:organization`` is organization at github. For example ``vizydrop`` 
 - ``:team`` is team name or slug at github. For example ``core`` 
