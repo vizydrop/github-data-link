@@ -118,7 +118,9 @@ const streamStats = async (github, repos, out) => {
     stream.end();
 };
 
-app.use(morgan(':method :status :response-time ms'));
+morgan.token('path', (req) => req.path);
+
+app.use(morgan(':method :status :path :response-time ms'));
 
 app.get('/vizydrop-status-ping', (req, res) => {
     res.json({ok:true});
