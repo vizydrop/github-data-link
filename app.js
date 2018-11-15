@@ -127,7 +127,7 @@ app.get('/', async (req, res, next) => {
         const repos = await getRepositoriesForLoggedUser(github);
         await streamStats(github, repos, res);
     } catch (err) {
-        next(err.response || err);
+        next(err);
     }
 });
 
@@ -143,7 +143,7 @@ app.get('/:organization/team/:team', async (req, res, next) => {
         const repos = await getTeamRepositories(github, team);
         await streamStats(github, repos, res);
     } catch (err) {
-        next(err.response || err);
+        next(err);
     }
 });
 
@@ -153,7 +153,7 @@ app.get('/:owner', async (req, res, next) => {
         const repos = await getRepositoriesForOwner(github, req.params.owner);
         await streamStats(github, repos, res);
     } catch (err) {
-        next(err.response || err);
+        next(err);
     }
 });
 
@@ -164,7 +164,7 @@ app.get('/:owner/:repository', async (req, res, next) => {
         const repo = await getRepository(github, req.params.owner, req.params.repository);
         await streamStats(github, [repo], res);
     } catch (err) {
-        next(err.response || err);
+        next(err);
     }
 });
 
