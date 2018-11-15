@@ -40,5 +40,7 @@ describe('github data link suite', function () {
 
     it('should retrieve concrete repo stats', () => this.get({path: '/facebook/react'}).expect(200));
 
+    it('should retrieve owner or organization repo stats', () => this.get({path: '/vizydrop'}).expect(200));
+
     after((done) => this.app.close(done));
 });

@@ -70,6 +70,10 @@ const getRepositoriesForOrganizations = (github) => retry(() => {
     return github.getUser().listRepos({'affiliation': 'organization_member'}).then(processGitHubResponse);
 }, RETRY_OPTS);
 
+const getRepositoriesForOwner = (github, owner) => retry(() => {
+    return github.getUser(owner).listRepos().then(processGitHubResponse);
+}, RETRY_OPTS);
+
 const getRepository = (github, owner, repository) => retry(() => {
     return github.getRepo(owner, repository).getDetails().then(processGitHubResponse);
 }, RETRY_OPTS);
@@ -154,6 +158,17 @@ app.get('/:organization/team/:team', async (req, res, next) => {
         next(err.response || err);
     }
 });
+
+app.get('/:owner', async (req, res, next) => {
+    try {
+        const github = await initGitHub(req);
+        const repos = await getRepositoriesForOwner(github, req.params.owner);
+        await streamStats(github, repos, res);
+    } catch (err) {
+        next(err.response || err);
+    }
+});
+
 
 app.get('/:owner/:repository', async (req, res, next) => {
     try {
