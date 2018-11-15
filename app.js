@@ -66,7 +66,7 @@ const initGitHub = async (req) => {
     return github;
 };
 
-const getRepositories = (github) => retry(() => {
+const getRepositoriesForOrganizations = (github) => retry(() => {
     return github.getUser().listRepos({'affiliation': 'organization_member'}).then(processGitHubResponse);
 }, RETRY_OPTS);
 
@@ -117,28 +117,28 @@ const getAuthToken = (req) => {
 };
 
 
-const writeStats = async (github, repos, res) => {
+const streamStats = async (github, repos, out) => {
     console.log(`Count of repos to process is ${repos.length}`);
-    res.type('json');
+    out.type('json');
     const stream = JSONStream.stringify();
-    stream.pipe(res);
+    stream.pipe(out);
     await writeStatsToStream(repos, github, stream);
     stream.end();
 };
+
 app.use(body.json());
-
-
 app.use(morgan(':method :status :response-time ms'));
 
 app.get('/', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
-        const repos = await getRepositories(github);
-        await writeStats(github, repos, res);
+        const repos = await getRepositoriesForOrganizations(github);
+        await streamStats(github, repos, res);
     } catch (err) {
         next(err.response || err);
     }
 });
+
 app.get('/:organization/team/:team', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
@@ -149,7 +149,7 @@ app.get('/:organization/team/:team', async (req, res, next) => {
             throw new Error(`Team '${req.params.team}' is not found at ${req.params.organization}`);
         }
         const repos = await getTeamRepositories(github, team);
-        await writeStats(github, repos, res);
+        await streamStats(github, repos, res);
     } catch (err) {
         next(err.response || err);
     }
@@ -159,7 +159,7 @@ app.get('/:owner/:repository', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
         const repo = await getRepository(github, req.params.owner, req.params.repository);
-        await writeStats(github, [repo], res);
+        await streamStats(github, [repo], res);
     } catch (err) {
         next(err.response || err);
     }
@@ -170,5 +170,5 @@ app.use((err, req, res, next) => res.status(getErrorCode(err)).send({
     code: getErrorCode(err)
 }));
 
-const server = app.listen(process.env.PORT || 8080);
+const server = app.listen(process.env.PORT || 7770);
 module.exports = () => server;
