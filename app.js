@@ -122,6 +122,10 @@ const streamStats = async (github, repos, out) => {
 app.use(body.json());
 app.use(morgan(':method :status :response-time ms'));
 
+app.get('/vizydrop-status-ping', (req, res) => {
+    res.json({ok:true});
+});
+
 app.get('/', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
