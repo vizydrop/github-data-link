@@ -138,7 +138,9 @@ app.get('/:organization/team/:team', async (req, res, next) => {
         const teamToFind = req.params.team.toLowerCase();
         const team = _.find(teams, (t) => t.name.toLowerCase() === teamToFind || t.slug.toLowerCase() === teamToFind);
         if (!team) {
-            throw new Error(`Team '${req.params.team}' is not found at ${req.params.organization}`);
+            const error = new Error(`Team '${req.params.team}' is not found in ${req.params.organization}`);
+            error.status = 404;
+            throw error;
         }
         const repos = await getTeamRepositories(github, team);
         await streamStats(github, repos, res);
