@@ -38,9 +38,9 @@ describe('github data link suite', function () {
         }));
 
     it('should retrieve stats for all repos where user is a member', () => this.get().expect(200));
-    it('should retrieve owner or organization repo stats', () => this.get({path: '/vizydrop'}).expect(200));
+    it('should retrieve organization repo stats', () => this.get({path: '/vizydrop'}).expect(200));
 
-    it('should fail for incorrect owner or organization repo stats', () => this.get({path: '/vizydrop666'}).expect(404));
+    it('should fail for incorrect organization repo stats', () => this.get({path: '/vizydrop666'}).expect(404));
     it('should fail for incorrect concrete repo stats', () => this.get({path: '/vizydrop/666'}).expect(404));
     it('should fail for incorrect team repo stats', () => this.get({path: '/vizydrop/teams/666'}).expect(404));
 

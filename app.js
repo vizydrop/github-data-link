@@ -25,6 +25,7 @@ const getMessage = (err) => {
 };
 
 const catchGitHub401or404 = (err) => {
+    console.log(`GITHUB ERROR: ${err.message}`);
     const errorCode = getErrorCode(err.response || {});
     if (errorCode === 401 || errorCode === 404) {
         err.status = errorCode;
@@ -49,8 +50,8 @@ const processGitHubResponse = (r) => {
 
 const initGitHub = async (req) => new GitHub({token: getAuthToken(req)});
 const execWithRetry = (fn) => retry(() => fn().then(processGitHubResponse).catch(catchGitHub401or404), RETRY_OPTS);
-const getRepositoriesForLoggedUser = (github) => execWithRetry(() => github.getUser().listRepos({'type': 'member'}));
-const getRepositoriesForOwner = (github, owner) => execWithRetry(() => github.getUser(owner).listRepos());
+const getRepositoriesForLoggedUser = (github) => execWithRetry(() => github.getUser().listRepos({'type': 'collaborator'}));
+const getRepositoriesForOrganization = (github, organization) => execWithRetry(() => github.getOrganization(organization).getRepos());
 const getRepository = (github, owner, repository) => execWithRetry(() => github.getRepo(owner, repository).getDetails());
 const getTeamRepositories = (github, team) => execWithRetry(() => github.getTeam(team.id).listRepos());
 const getTeams = (github, organization) => execWithRetry(() => github.getOrganization(organization).getTeams());
@@ -149,10 +150,10 @@ app.get('/:organization/team/:team', async (req, res, next) => {
     }
 });
 
-app.get('/:owner', async (req, res, next) => {
+app.get('/:organization', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
-        const repos = await getRepositoriesForOwner(github, req.params.owner);
+        const repos = await getRepositoriesForOrganization(github, req.params.organization);
         await streamStats(github, repos, res);
     } catch (err) {
         next(err);
