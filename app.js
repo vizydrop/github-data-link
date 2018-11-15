@@ -46,6 +46,15 @@ const writeContributorStatsToStream = (entry, repo, contributorName, stream) => 
     });
 };
 
+const catchGitHubRequestNotFoundError = (err) => {
+    const errorCode = getErrorCode(err.response || {});
+    if (errorCode === 401 || errorCode === 404) {
+        err.status = errorCode;
+        throw new retry.StopError(err);
+    }
+    throw err;
+};
+
 const processGitHubResponse = (r) => {
     console.log(`${r.config.method} ${r.status} ${r.config.url} | ${r.statusText}`);
     if (r.status === 204) {
@@ -54,6 +63,7 @@ const processGitHubResponse = (r) => {
     if (r.status !== 200) {
         const error = new Error(r.statusText);
         error.code = r.status;
+        error.status = r.status;
         throw error;
     }
     return r.data;
@@ -67,23 +77,23 @@ const initGitHub = async (req) => {
 };
 
 const getRepositoriesForLoggedUser = (github) => retry(() => {
-    return github.getUser().listRepos({'type': 'member'}).then(processGitHubResponse);
+    return github.getUser().listRepos({'type': 'member'}).then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
 }, RETRY_OPTS);
 
 const getRepositoriesForOwner = (github, owner) => retry(() => {
-    return github.getUser(owner).listRepos().then(processGitHubResponse);
+    return github.getUser(owner).listRepos().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
 }, RETRY_OPTS);
 
 const getRepository = (github, owner, repository) => retry(() => {
-    return github.getRepo(owner, repository).getDetails().then(processGitHubResponse);
+    return github.getRepo(owner, repository).getDetails().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
 }, RETRY_OPTS);
 
 const getTeamRepositories = (github, team) => retry(() => {
-    return github.getTeam(team.id).listRepos().then(processGitHubResponse);
+    return github.getTeam(team.id).listRepos().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
 }, RETRY_OPTS);
 
-const getTeams = (github, req) => retry(() => {
-    return github.getOrganization(req.params.organization).getTeams().then(processGitHubResponse);
+const getTeams = (github, organization) => retry(() => {
+    return github.getOrganization(organization).getTeams().then(processGitHubResponse).catch(catchGitHubRequestNotFoundError);
 }, RETRY_OPTS);
 
 const getRepoStats = (github, repo) => retry(() => {
@@ -146,7 +156,7 @@ app.get('/', async (req, res, next) => {
 app.get('/:organization/team/:team', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
-        const teams = await getTeams(github, req);
+        const teams = await getTeams(github, req.params.organization);
         const teamToFind = req.params.team.toLowerCase();
         const team = _.find(teams, (t) => t.name.toLowerCase() === teamToFind || t.slug.toLowerCase() === teamToFind);
         if (!team) {
