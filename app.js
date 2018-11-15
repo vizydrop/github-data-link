@@ -1,6 +1,5 @@
 const express = require('express');
 const app = express();
-const body = require('body-parser');
 const GitHub = require('github-api');
 const Promise = require('bluebird');
 const JSONStream = require('JSONStream');
@@ -119,7 +118,6 @@ const streamStats = async (github, repos, out) => {
     stream.end();
 };
 
-app.use(body.json());
 app.use(morgan(':method :status :response-time ms'));
 
 app.get('/vizydrop-status-ping', (req, res) => {
