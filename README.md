@@ -15,19 +15,19 @@ Attach authorization header ``Authorization`` to your request in the following f
 
 ## API
 
-### Retrieve stats of repositories where you are a member
-### ``GET: http://<app host>/``
+#### Retrieve stats of repositories where you are a member
+#### ``GET: http://<app host>/``
 
-### Retrieve stats of repositories by organization or owner
-### ``GET: http://<app host>/:owner`` 
+#### Retrieve stats of repositories by organization or owner
+#### ``GET: http://<app host>/:owner`` 
 - ``:owner`` is username or organization at github. For example ``vizydrop`` 
 
-### Retrieve stats of concrete repository 
-### ``GET: http://<app host>/:owner/:repository`` 
+#### Retrieve stats of concrete repository 
+#### ``GET: http://<app host>/:owner/:repository`` 
 - ``:owner`` is username or organization at github
 - ``:repository`` is name of the repository
 
-### Retrieve stats of repositories by team 
-### ``GET: http://<app host>/:organization/team/:team`` 
+#### Retrieve stats of repositories by team 
+#### ``GET: http://<app host>/:organization/team/:team`` 
 - ``:organization`` is organization at github. For example ``vizydrop`` 
 - ``:team`` is team name or slug at github. For example ``core`` 
