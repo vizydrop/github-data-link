@@ -1,5 +1,5 @@
 # GitHub stats link app
-App which retrieves stats related to weekly contributions to GitHub repositories
+Stats related to weekly contributions to GitHub repositories
  
 ## Authentication
 App is required to be authenticated to GitHub api in order to retrieve stats about repositories. You need to provide your personal authentication token from GitHub. GitHub personal token can generated at https://github.com/settings/tokens
