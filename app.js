@@ -66,8 +66,8 @@ const initGitHub = async (req) => {
     return github;
 };
 
-const getRepositoriesForOrganizations = (github) => retry(() => {
-    return github.getUser().listRepos({'affiliation': 'organization_member'}).then(processGitHubResponse);
+const getRepositoriesForLoggedUser = (github) => retry(() => {
+    return github.getUser().listRepos({'type': 'member'}).then(processGitHubResponse);
 }, RETRY_OPTS);
 
 const getRepositoriesForOwner = (github, owner) => retry(() => {
@@ -136,7 +136,7 @@ app.use(morgan(':method :status :response-time ms'));
 app.get('/', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
-        const repos = await getRepositoriesForOrganizations(github);
+        const repos = await getRepositoriesForLoggedUser(github);
         await streamStats(github, repos, res);
     } catch (err) {
         next(err.response || err);

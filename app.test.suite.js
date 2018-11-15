@@ -17,8 +17,7 @@ describe('github data link suite', function () {
 
     it('should not be authenticated to github with non-valid token', () => this.get({token: 'not-valid'}).expect(401));
 
-    it('should retrieve stats for all repos for user organizations', () => this.get()
-        .expect(200)
+    it('should retrieve concrete repo stats', () => this.get({path: '/vizydrop/github-data-link'}).expect(200)
         .then((res) => {
             const stats = res.body;
             expect(stats).to.be.a('array');
@@ -38,7 +37,8 @@ describe('github data link suite', function () {
             expect(entry).to.have.property('Date');
         }));
 
-    it('should retrieve concrete repo stats', () => this.get({path: '/facebook/react'}).expect(200));
+    it('should retrieve stats for all repos for user organizations', () => this.get()
+        .expect(200));
 
     it('should retrieve owner or organization repo stats', () => this.get({path: '/vizydrop'}).expect(200));
 
