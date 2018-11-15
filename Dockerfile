@@ -1,18 +1,16 @@
-FROM alpine:edge
-
-
-WORKDIR /github-data-link
-
-COPY . /github-data-link
-
-
-RUN apk add -U curl git nodejs
-
-EXPOSE 7770
+FROM node:10.13.0-alpine
 
 ENV NODE_ENV production
 ENV PORT 7770
 
-ENTRYPOINT ["sh", "manage.sh"]
+WORKDIR /github-data-link
 
-CMD ["run-server"]
+COPY package.json yarn.lock ./
+
+RUN yarn install
+
+COPY . .
+
+EXPOSE 7770
+
+CMD [ "npm", "start" ]

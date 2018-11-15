@@ -180,5 +180,6 @@ app.use((err, req, res, next) => res.status(getErrorCode(err)).send({
     code: getErrorCode(err)
 }));
 
-const server = app.listen(process.env.PORT || 7770);
+const port = process.env.PORT || 7770;
+const server = app.listen(port, () => console.log(`github-data-link is listening on port ${port}!`));
 module.exports = () => server;
