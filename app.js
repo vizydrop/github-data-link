@@ -49,7 +49,15 @@ const processGitHubResponse = (r) => {
     return r.data;
 };
 
-const initGitHub = async (req) => new GitHub({token: getAuthToken(req)});
+const initGitHub = async (req) => {
+    const authToken = getAuthToken(req);
+    if (_.isEmpty(authToken)) {
+        const error = new Error('Unauthorized');
+        error.status = 401;
+        throw error;
+    }
+    return new GitHub({token: authToken});
+};
 const execWithRetry = (fn) => retry(() => fn().then(processGitHubResponse).catch(catchGitHub401or404), RETRY_OPTS);
 const getRepositoriesForLoggedUser = (github) => execWithRetry(() => github.getUser().listRepos({'type': 'collaborator'}));
 const getRepositoriesForOrganization = (github, organization) => execWithRetry(() => github.getOrganization(organization).getRepos());
@@ -131,10 +139,6 @@ app.get('/vizydrop-status-ping', (req, res) => {
 });
 
 app.get('/', async (req, res, next) => {
-    if(!getAuthToken(req)){
-        res.sendStatus(401);
-        return;
-    }
     try {
         const github = await initGitHub(req);
         const repos = await getRepositoriesForLoggedUser(github);
