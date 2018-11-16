@@ -9,6 +9,8 @@ const requestLog = require('./request-log');
 const logger = require('./logger');
 const retry = require('bluebird-retry');
 const _ = require('lodash');
+const MarkdownIt = require('markdown-it');
+const readFile = Promise.promisify(require("fs").readFile);
 
 const RETRY_OPTS = {
     backoff: 5,
@@ -130,15 +132,28 @@ const streamStats = async (github, repos, out) => {
 
 app.use(requestLog());
 
-app.get('/favicon.ico', function (req, res) {
-    res.sendFile(path.resolve('./favicon.ico'));
+app.get('/favicon.ico', (req, res) => res.sendFile(path.resolve('./favicon.ico')));
+app.get('/markdown.css', (req, res) => res.sendFile(path.resolve('./markdown.css')));
+
+app.get('/', async (req, res, next) => {
+
+    try {
+        const indexPage = await readFile(path.resolve('./index.html'));
+        const readme = await readFile(path.resolve('./README.md'));
+        const rendered = indexPage.toString().replace('#body#', new MarkdownIt().render(readme.toString()));
+        res.type('html');
+        res.end(rendered);
+    } catch (e) {
+        logger.error(e);
+        next(e);
+    }
 });
 
 app.get('/vizydrop-status-ping', (req, res) => {
     res.json({ok:true});
 });
 
-app.get('/', async (req, res, next) => {
+app.get('/me', async (req, res, next) => {
     try {
         const github = await initGitHub(req);
         const repos = await getRepositoriesForLoggedUser(github);
