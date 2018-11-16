@@ -2,7 +2,7 @@
 Stats related to weekly contributions to GitHub repositories
  
 ## Authentication
-App is required to be authenticated to GitHub api in order to retrieve stats about repositories. You need to provide your personal authentication token from GitHub. GitHub personal token can generated at https://github.com/settings/tokens
+App is required to be authenticated to GitHub api in order to retrieve stats about repositories. You need to provide your personal authentication token from GitHub. GitHub personal token can generated at [https://github.com/settings/tokens](https://github.com/settings/tokens)
 
 #### Query String Parameter
 #### ``?token=YOUR-GITHUB-TOKEN``
@@ -58,5 +58,5 @@ curl "https://links.vizydrop.com/github/vizydrop/team/core?token=YOUR-GITHUB-TOK
 
 ## App Source Code and Docker Image
 
-- Source Code: https://github.com/vizydrop/github-data-link
+- Source Code: [https://github.com/vizydrop/github-data-link](https://github.com/vizydrop/github-data-link)
 - Docker Image: vizydrop/github-data-link
