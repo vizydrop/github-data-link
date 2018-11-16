@@ -3,7 +3,7 @@ const expect = chai.expect;
 const request = require('supertest');
 
 describe('github data link suite', function () {
-    this.timeout(10000);
+    this.timeout(100000);
     before('start app', () => {
         this.app = require('./app')();
         this.get = (config = {}) => request(`http://127.0.0.1:${this.app.address().port}`)
